@@ -196,7 +196,7 @@
             outputSection.classList.add('opacity-0');
 
             try {
-                const apiUrl = 'http://localhost:3000/summarize';
+                const apiUrl = 'https://synapse-backend-7c0c.onrender.com';
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

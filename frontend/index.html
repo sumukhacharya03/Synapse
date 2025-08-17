@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse - AI Note Summarizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <!-- UPDATED: Added Poppins font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            /* UPDATED: Using Poppins font */
+            font-family: 'Poppins', sans-serif;
+            background: #0f0c29;  /* fallback for old browsers */
+            background: -webkit-linear-gradient(to right, #24243e, #302b63, #0f0c29);  /* Chrome 10-25, Safari 5.1-6 */
+            background: linear-gradient(to right, #24243e, #302b63, #0f0c29); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+        }
+        .glass-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top: 4px solid #8b5cf6; /* Purple accent */
+            width: 40px;
+            height: 40px;
+            animation: spin 1.5s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #summaryOutput h1, #summaryOutput h2, #summaryOutput h3 {
+            font-weight: 600;
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+            color: #f9fafb;
+        }
+        #summaryOutput h1 { font-size: 1.5em; }
+        #summaryOutput h2 { font-size: 1.25em; }
+        #summaryOutput ul {
+            list-style-type: disc;
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+        }
+        #summaryOutput li {
+            margin-bottom: 0.5rem;
+        }
+        #summaryOutput p {
+            margin-bottom: 0.75rem;
+            line-height: 1.7;
+        }
+        #summaryOutput strong, #summaryOutput b {
+            color: #d1d5db;
+        }
+    </style>
+</head>
+<body class="text-gray-300">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl min-h-screen flex flex-col justify-center">
+        <header class="text-center mb-12">
+            <div class="flex justify-center items-center gap-4 mb-4">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-400">
+                    <path d="M12 2 L12 5"/>
+                    <path d="M12 19 L12 22"/>
+                    <path d="M5 12 L2 12"/>
+                    <path d="M22 12 L19 12"/>
+                    <path d="M17.65 6.35 L19.07 4.93"/>
+                    <path d="M4.93 19.07 L6.35 17.65"/>
+                    <path d="M19.07 19.07 L17.65 17.65"/>
+                    <path d="M6.35 6.35 L4.93 4.93"/>
+                    <circle cx="12" cy="12" r="2"/>
+                </svg>
+                <h1 class="text-5xl md:text-6xl font-bold text-gray-100 tracking-tight">Synapse</h1>
+            </div>
+            <p class="text-lg text-gray-400">From Transcript to Insight, powered by your Instructions</p>
+        </header>
+
+        <main class="glass-container p-6 sm:p-8 rounded-2xl shadow-2xl">
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <label for="transcript" class="block text-lg font-semibold text-gray-200">Paste Transcript</label>
+                        <button id="clearTranscriptBtn" class="text-sm bg-red-700/50 text-red-300 px-3 py-1 rounded-md hover:bg-gray-600 transition">Clear</button>
+                    </div>
+                    <textarea id="transcript" rows="15" class="w-full p-4 bg-gray-900/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-300 placeholder-gray-500" placeholder="Paste Transcript here..."></textarea>
+                </div>
+
+                <div class="flex flex-col space-y-6">
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label for="prompt" class="block text-lg font-semibold text-gray-200">Provide Instructions</label>
+                            <button id="clearPromptBtn" class="text-sm bg-red-700/50 text-red-300 px-3 py-1 rounded-md hover:bg-gray-600 transition">Clear</button>
+                        </div>
+                        <textarea id="prompt" rows="5" class="w-full p-4 bg-gray-900/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-300 placeholder-gray-500">Summarize the key decisions and action items.</textarea>
+                    </div>
+                    <button id="generateBtn" class="w-full bg-purple-600 text-white font-bold py-4 px-4 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-500/50 transition-all duration-300 ease-in-out flex items-center justify-center text-lg transform hover:scale-105 mt-auto">
+                        Generate Summary
+                    </button>
+                </div>
+            </div>
+
+            <div id="loader" class="hidden justify-center items-center my-8 transition-opacity duration-300">
+                <div class="loader"></div>
+                <p class="ml-4 text-gray-400 text-lg">Synapse is generating your Insight...</p>
+            </div>
+
+            <div id="errorBox" class="hidden bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg relative my-6" role="alert">
+                <strong class="font-bold">Oops!</strong>
+                <span class="block sm:inline ml-2" id="errorMessage"></span>
+            </div>
+
+            <div id="outputSection" class="mt-10 opacity-0 transition-opacity duration-700" style="display: none;">
+                <div class="border-t border-gray-700/50 pt-8">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-100">Generated Summary</h2>
+                        <div class="flex items-center gap-2">
+                            <button id="restartSpeakBtn" class="bg-gray-700/80 text-white p-2 rounded-lg hover:bg-gray-600 transition-all duration-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                                </svg>
+                            </button>
+                            <button id="speakBtn" class="bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700 transition-all duration-300 flex items-center">
+                                <span id="speakBtnText">Speak</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="summaryOutput" contenteditable="true" class="w-full p-5 bg-gray-900/50 border border-gray-700 rounded-lg min-h-[250px] focus:outline-none focus:ring-2 focus:ring-purple-500/80 transition prose">
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-100">Share</h3>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <input type="email" id="emailInput" class="flex-grow p-4 bg-gray-900/50 border border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition text-gray-300 placeholder-gray-500" placeholder="Enter your mail-id">
+                        <button id="shareBtn" class="bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500/50 transition-all duration-300 ease-in-out transform hover:scale-105">
+                            Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const transcriptInput = document.getElementById('transcript');
+        const promptInput = document.getElementById('prompt');
+        const generateBtn = document.getElementById('generateBtn');
+        const summaryOutput = document.getElementById('summaryOutput');
+        const outputSection = document.getElementById('outputSection');
+        const loader = document.getElementById('loader');
+        const errorBox = document.getElementById('errorBox');
+        const errorMessage = document.getElementById('errorMessage');
+        const emailInput = document.getElementById('emailInput');
+        const shareBtn = document.getElementById('shareBtn');
+        const speakBtn = document.getElementById('speakBtn');
+        const speakBtnText = document.getElementById('speakBtnText');
+        const restartSpeakBtn = document.getElementById('restartSpeakBtn');
+        const converter = new showdown.Converter();
+        const clearTranscriptBtn = document.getElementById('clearTranscriptBtn');
+        const clearPromptBtn = document.getElementById('clearPromptBtn');
+
+        // --- Event Listeners ---
+        generateBtn.addEventListener('click', handleGenerateSummary);
+        shareBtn.addEventListener('click', handleShare);
+        speakBtn.addEventListener('click', speakSummary);
+        restartSpeakBtn.addEventListener('click', restartSpeech);
+        clearTranscriptBtn.addEventListener('click', () => transcriptInput.value = '');
+        clearPromptBtn.addEventListener('click', () => promptInput.value = '');
+
+        // --- Core Functions ---
+        async function handleGenerateSummary() {
+            speechSynthesis.cancel();
+            speakBtnText.textContent = 'Speak';
+
+            const transcript = transcriptInput.value.trim();
+            const prompt = promptInput.value.trim();
+
+            if (!transcript || !prompt) {
+                showError('Please provide both transcript and instructions');
+                return;
+            }
+
+            toggleLoading(true);
+            hideError();
+            outputSection.style.display = 'none';
+            outputSection.classList.add('opacity-0');
+
+            try {
+                const apiUrl = 'http://localhost:3000/summarize';
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transcript, prompt }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const htmlSummary = converter.makeHtml(data.summary);
+                summaryOutput.innerHTML = htmlSummary;
+
+                outputSection.style.display = 'block';
+                setTimeout(() => {
+                    outputSection.classList.remove('opacity-0');
+                }, 100);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(error.message || 'An unknown error occurred.');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        function handleShare() {
+            const emails = emailInput.value.trim();
+            const summaryText = converter.makeMarkdown(summaryOutput.innerHTML);
+            if (!emails) {
+                showError('Please enter at least one recipient email address.');
+                return;
+            }
+            if (!summaryText) {
+                showError('There is no summary to share.');
+                return;
+            }
+            const subject = 'AI-Generated Meeting Summary';
+            const body = encodeURIComponent(summaryText);
+            window.location.href = `mailto:${emails}?subject=${subject}&body=${body}`;
+            hideError();
+        }
+
+        function startSpeechFromBeginning() {
+            const summaryText = summaryOutput.innerText;
+            if (!summaryText) {
+                showError("There's no summary to speak.");
+                return;
+            }
+            speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(summaryText);
+            utterance.onend = () => {
+                speakBtnText.textContent = 'Speak';
+            };
+            speechSynthesis.speak(utterance);
+            speakBtnText.textContent = 'Pause';
+        }
+
+        function restartSpeech() {
+            startSpeechFromBeginning();
+        }
+
+        function speakSummary() {
+            if (speechSynthesis.speaking && !speechSynthesis.paused) {
+                speechSynthesis.pause();
+                speakBtnText.textContent = 'Resume';
+                return;
+            }
+
+            if (speechSynthesis.paused) {
+                speechSynthesis.resume();
+                speakBtnText.textContent = 'Pause';
+                return;
+            }
+
+            startSpeechFromBeginning();
+        }
+
+        // --- UI Helper Functions ---
+        function toggleLoading(isLoading) {
+            if (isLoading) {
+                loader.classList.remove('hidden');
+                loader.classList.add('flex');
+                generateBtn.disabled = true;
+                generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorBox.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorBox.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
